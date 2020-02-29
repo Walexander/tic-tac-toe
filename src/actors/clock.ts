@@ -80,7 +80,7 @@ export class Clock extends Actor<ClockMessage> {
   private machine = Machine(machineConfig);
 
   private state = this.machine.initialState;
-  private ui = lookup("ui");
+  private ui = lookup('ui');
 
   async init() {
     await this.notify();
