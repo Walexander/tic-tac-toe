@@ -13,22 +13,19 @@
  */
 
 import { hookup, initializeQueues } from "actor-helpers/src/actor/Actor.js";
-import { UI } from "./actors/ui.js";
+import { UI as BoardUI } from "./actors/boardui";
+import { Clock } from "./actors/clock.js";
+import { Board } from "./actors/board";
 
 async function bootstrap() {
-  await initializeQueues();
-  const ui = new UI();
-  await hookup("ui", ui);
-
-  if (new URL(location.href).searchParams.has("ui-thread-only")) {
-    const { Clock } = await import("./actors/clock.js");
-    const clock = new Clock();
-    await hookup("clock", clock);
-  } else {
-    const w = new Worker("./worker.js");
-    // Safari throttles/freezes worker if they don’t receive messages.
-    setInterval(() => w.postMessage(""), 3000);
-  }
+	await initializeQueues();
+	const myui = new BoardUI()
+	await hookup("boardui", myui);
+	const clock = new Clock();
+	const board = new Board();
+	await hookup("clock", clock);
+	await hookup("board", board);
+	myui.render()
 }
 
 bootstrap();

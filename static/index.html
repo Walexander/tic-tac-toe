@@ -14,10 +14,13 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
     <meta name="theme-color" content="#1A1033">
     <title>Clock demo</title>
     <link href="https://fonts.googleapis.com/css?family=Roboto:100,500" rel="stylesheet">
-    <link rel="stylesheet" href="./styles/clock.css">
-    <link rel="manifest" href="./manifest.json">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,500" rel="stylesheet">
+    <link rel=stylesheet href="../static/styles/clock.css" />
   </head>
   <body>
-    <script src="app.js"></script>
+    <script>window.process = { env: 'development' }</script>
+
+    <script type=module src="../src/app.ts"></script>
+    <div id="myui"></div>
   </body>
 </html>
