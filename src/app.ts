@@ -12,10 +12,12 @@
  * http://polymer.github.io/PATENTS.txt
  */
 
-import { hookup, initializeQueues } from "actor-helpers/src/actor/Actor.js";
-import { UI as BoardUI } from "./actors/boardui";
-import { Clock } from "./actors/clock.js";
-import { Board } from "./actors/board";
+import { hookup, initializeQueues } from 'actor-helpers/src/actor/Actor.js'
+import { UI as BoardUI } from './actors/boardui'
+import { Clock } from './actors/clock.js'
+import { Board } from './actors/board'
+import { Player } from './actors/player'
+import { OwnerType } from './game/marker'
 
 async function bootstrap() {
 	await initializeQueues();
@@ -23,8 +25,10 @@ async function bootstrap() {
 	await hookup("boardui", myui);
 	const clock = new Clock();
 	const board = new Board();
-	await hookup("clock", clock);
-	await hookup("board", board);
+	const player = new Player(OwnerType.PLAYER_2)
+	await hookup("clock", clock)
+	await hookup("board", board)
+	await hookup("player", player)
 	myui.render()
 }
 

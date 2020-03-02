@@ -15,8 +15,8 @@
 import { h, render } from 'preact'
 import { Actor, lookup } from 'actor-helpers/src/actor/Actor.js'
 import { OwnerType } from '../game/marker'
-import { Actions, BoardState, WinningCombo } from '../game/board'
-import { Mark } from './board'
+import { Actions, GameBoard, WinningCombo } from '../game/board'
+import { Player } from '../components/player'
 
 declare global {
 	interface ActorMessageType {
@@ -27,25 +27,24 @@ declare global {
 export interface BoardUiMessage {
 	player: OwnerType
 	type: Actions | 'INIT'
-	board: Mark[]
+	board: GameBoard
 	boardState?: any
 	winningCombo?: WinningCombo
 }
 
 export interface BoardUiWinner {
 	winner: OwnerType
-	board: Mark[]
+	board: GameBoard 
 	winningLine: number[]
 }
 
 export class UI extends Actor<BoardUiMessage> {
 	private board = lookup('board')
 	private el: any = document.getElementById('myui')
-	private player = OwnerType.PLAYER_1
 
 	onMessage(message: BoardUiMessage) {
 		const board = message.board
-		this.player = message.player
+		const whoseTurn = message.player
 		const winningCombo = message.winningCombo || [-1,-1,-1]
 		const button =
 				<button onClick={() => this.restartGame()}>Restart</button>
@@ -55,14 +54,17 @@ export class UI extends Actor<BoardUiMessage> {
 		else
 			render(
 				<div className="dial-wrapper">
-					<h1>
-						{message.boardState === 'winner' ?
-							`Winner 🐔 dinner ${message.player}!!` :
-							message.boardState ==='finished' ?
-								'DRAW (you suck)' :
-								`${message.player} its your turn`}
-					</h1>
-					{button}
+					<header>
+						<h1>
+							{message.boardState === 'winner' ?
+								`Winner 🐔 dinner ${message.player}!!` :
+								message.boardState ==='finished' ?
+									'DRAW (you suck)' :
+									`${message.player} its your turn`}
+						</h1>
+						<div> {button} </div>
+					</header>
+					<Player active={whoseTurn}/>
 					<ul className={['board', '--' + message.boardState].join(' ')} >
 						{board.map((mark, index) => (
 							<li

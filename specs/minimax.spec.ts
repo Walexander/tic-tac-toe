@@ -1,39 +1,6 @@
 import { OwnerType } from '../src/game/marker'
-import { BoardContext, GameBoard, boardMachine } from '../src/game/Board'
-import { minimax, findBestMove } from '../src/game/minimax'
-describe.skip('findBestMove', () => {
-	it('is a function', () => expect(typeof findBestMove).toEqual('function'))
-	it('finds the winner on a simple board', () => {
-		const board = [
-			OwnerType.PLAYER_1,
-			OwnerType.PLAYER_1,
-			OwnerType.PLAYER_0,
-		]
-
-		const bestMove = findBestMove(board, OwnerType.PLAYER_1)
-		expect(bestMove).toEqual(2)
-	})
-	it('finds the winner on a two-turn board', () => {
-		const board = [
-			OwnerType.PLAYER_1, OwnerType.PLAYER_1, OwnerType.PLAYER_2,
-			OwnerType.PLAYER_1, OwnerType.PLAYER_2, OwnerType.PLAYER_2,
-			OwnerType.PLAYER_0, OwnerType.PLAYER_2, OwnerType.PLAYER_1,
-		]
-
-		const bestMove = findBestMove(board, OwnerType.PLAYER_1)
-		expect(bestMove).toEqual(6)
-	})
-	it('finds the winner on a slightly more complex board ', () => {
-		const board = [
-			OwnerType.PLAYER_1, OwnerType.PLAYER_2, OwnerType.PLAYER_2,
-			OwnerType.PLAYER_2, OwnerType.PLAYER_0, OwnerType.PLAYER_1,
-			OwnerType.PLAYER_1, OwnerType.PLAYER_0, OwnerType.PLAYER_0,
-		]
-
-		const bestMove = findBestMove(board, OwnerType.PLAYER_1)
-		expect(bestMove).toEqual(8)
-	})
-})
+import { minimax } from '../src/game/minimax'
+import { printBoard } from '../src/game/utils'
 describe('minimax', () => {
 	it('is a function', () => {
 		expect(typeof minimax).toEqual('function')
@@ -88,13 +55,14 @@ describe('minimax', () => {
 	})
 	it('returns 0 when draw', () => {
 		const board = [
-			OwnerType.PLAYER_1, OwnerType.PLAYER_2, OwnerType.PLAYER_1,
-			OwnerType.PLAYER_1, OwnerType.PLAYER_1, OwnerType.PLAYER_2,
-			OwnerType.PLAYER_0, OwnerType.PLAYER_0, OwnerType.PLAYER_2,
+			OwnerType.PLAYER_1, OwnerType.PLAYER_2, OwnerType.PLAYER_2,
+			OwnerType.PLAYER_2, OwnerType.PLAYER_1, OwnerType.PLAYER_1,
+			OwnerType.PLAYER_0, OwnerType.PLAYER_1, OwnerType.PLAYER_2,
 		]
 		const [ score, move ] = minimax(board, OwnerType.PLAYER_1)
+		printBoard(board)
 		expect(score).toEqual(0)
-				//expect(move).toEqual(6)
+		expect(move).toEqual(6)
 	})
 	it('finds the draw', () => {
 		const board = [
@@ -107,7 +75,7 @@ describe('minimax', () => {
 		expect(move).toEqual(8)
 		expect(score).toEqual(0)
 	})
-	it.only('finds the win 3 moves out', () => {
+	it('finds the win 3 moves out', () => {
 		const board = [
 			OwnerType.PLAYER_1, OwnerType.PLAYER_2, OwnerType.PLAYER_1,
 			OwnerType.PLAYER_0, OwnerType.PLAYER_0, OwnerType.PLAYER_0,
@@ -134,8 +102,8 @@ describe('minimax', () => {
 			OwnerType.PLAYER_2, OwnerType.PLAYER_0, OwnerType.PLAYER_1,
 		]
 
-		const moves = minimax(board, OwnerType.PLAYER_1)
-		expect(moves).toEqual(0)
+		const [ score ] = minimax(board, OwnerType.PLAYER_1)
+		expect(score).toEqual(0)
 	})
 	it('returns -1 when PLAYER_2 wins', () => {
 		const board = [
@@ -144,7 +112,29 @@ describe('minimax', () => {
 			OwnerType.PLAYER_2, OwnerType.PLAYER_1, OwnerType.PLAYER_0,
 		]
 
-		const moves = minimax(board, OwnerType.PLAYER_2)
-		expect(moves).toEqual(-1)
+		const [ score ] = minimax(board, OwnerType.PLAYER_2)
+		expect(score).toEqual(-1)
+	})
+	it('should choose the middle square', () => {
+		const board = [
+			OwnerType.PLAYER_1, OwnerType.PLAYER_0, OwnerType.PLAYER_0,
+			OwnerType.PLAYER_0, OwnerType.PLAYER_0, OwnerType.PLAYER_0,
+			OwnerType.PLAYER_0, OwnerType.PLAYER_0, OwnerType.PLAYER_0,
+		]
+
+		const [ score, move ] = minimax(board, OwnerType.PLAYER_2)
+		expect(score).toEqual(0)
+		expect(move).toEqual(4)
+	})
+	it.only('should choose the win', () => {
+		const board = [
+			OwnerType.PLAYER_1, OwnerType.PLAYER_0, OwnerType.PLAYER_0,
+			OwnerType.PLAYER_0, OwnerType.PLAYER_2, OwnerType.PLAYER_0,
+			OwnerType.PLAYER_0, OwnerType.PLAYER_2, OwnerType.PLAYER_1,
+		]
+
+		const [ score, move ] = minimax(board, OwnerType.PLAYER_2)
+		expect(move).toEqual(1)
+		expect(score).toEqual(-1)
 	})
 })

@@ -1,6 +1,8 @@
 import { OwnerType } from './marker'
-import { WinningCombo, GameBoard, boardMachine } from './Board'
+import { WinningCombo, GameBoard } from './Board'
+import { printBoard } from './utils'
 import * as R from 'ramda'
+const MAX_DEPTH = Infinity 
 
 export const minimax = (board: GameBoard, player: OwnerType, depth = 0): [number, number] => {
 	let multiplier = player === OwnerType.PLAYER_1 ? 1 : -1
@@ -20,36 +22,29 @@ export const minimax = (board: GameBoard, player: OwnerType, depth = 0): [number
 
 		let score = evaluate(nextBoard) * multiplier 
 
-		if(score === 0)
+		if(score === 0 && depth < MAX_DEPTH)
 			[ score ] = minimax(nextBoard, nextPlayer, depth + 1)
-		else if(score !== 0) {
-			printBoard(nextBoard)
-			console.log('score  = %s', score)
-		}
 
 		bestScore = multiplier > 0 ?
 			Math.max(bestScore,	score) :
 			Math.min(bestScore, score)
-		if(score == bestScore)
+
+		if(score == bestScore && depth == 0)
 			bestIndex = move
 
+		if(depth == 0)
+			console.log(
+				'%s testing@%s : move[%s] = %s <? %s [ %s ]',
+				new Array(depth).fill('-- ').join(''),
+				player,
+				move,
+				score,
+				bestScore,
+				bestIndex
+			)
 	}
 	return [ bestScore, bestIndex ]
 }
-
-export const findBestMove = (board: GameBoard, player: OwnerType) => {
-
-	let moves = getNextMoves(board)
-	let multiplier = player === OwnerType.PLAYER_1 ? 1 : -1
-	let bestScore = -Infinity
-	let bestIndex = -1
-
-	for(let move of moves) {
-	}
-
-	return bestIndex
-}
-
 const evaluate = (board: GameBoard): number => hasWinner(board) ? 1 : 0;
 
 const isWinnerFn = R.curry(R.contains(R.__, [
@@ -85,11 +80,3 @@ const isOver = (board: GameBoard) =>
 	board.filter(m => m === OwnerType.PLAYER_0).length <= 0
 
 
-const printBoard = (board: GameBoard) =>
-	console.log(
-		'board %s',
-		board
-			.map(m => (m ? m : ' '))
-			.map((m, i) => (i % 3 === 0 ? '\n' + m : '| ' + m))
-			.join(' ')
-	)

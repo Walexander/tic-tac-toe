@@ -141,7 +141,6 @@ button {
 .board {
 	display: flex;
 	max-width: 800px;
-	max-height: 800px;
 	flex-wrap: wrap;
 	margin: auto;
 	flex: 0 0 33%;
@@ -175,8 +174,66 @@ button {
 	cursor: pointer;
 }
 
-h1 { line-height: 2 }
+h1 {
+	line-height: 2;
+	margin: 0;
+}
 .board	> * {
 	display: block;
 	flex-basis: 33%;
+}
+
+.players {
+	display: flex;
+	padding: 0;
+	list-style-type: none;
+	justify-content: space-around;
+	font-size: 5vw;
+	line-height: 1;
+	margin-top: 0.25rem;
+	margin-bottom: 0;
+	background: #1119;
+
+}
+.players > * {
+	padding: 0.25em 0.5em;
+	background: white;
+	color: black;
+	text-align: center;
+	min-width: 10ch;
+}
+.players__player.--active {
+	background: white;
+	color: black;
+}
+.players__player.--inactive {
+	background: #333;
+	color: #eee;
+}
+
+.players__player:after {
+	content: 'You Turn';
+	font-size: 0.75rem;
+	display: block;
+	margin-top: 0.25rem;
+}
+.players__player.--inactive:after {
+	content: 'Wait';
+}
+.players__player.--inactive:after {
+	content: 'Wait';
+}
+header > * {
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	flex-direction: column;
+}
+@media (min-width: 728px) {
+	header { flex-direction: row; }
 }

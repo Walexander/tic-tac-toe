@@ -8,8 +8,13 @@ declare global {
 		player: PlayerMessage
 	}
 }
+export enum EventTypes {
+	MOVE = 'MOVE',
+	UPDATE = 'UPDATE'	
+}
 
 export interface PlayerMessage {
+	type: EventTypes,
 	board: GameBoard,
 }
 
@@ -17,10 +22,16 @@ export class Player extends Actor<PlayerMessage> {
 	private board = lookup('board')
 	private player = OwnerType.PLAYER_2
 
+	constructor(player: OwnerType) {
+		super()
+		this.player = player
+	}
+
 	onMessage(message: PlayerMessage) {
 		const state = message.board
-		const [ score, move ] = minimax(state, this.player)
-		console.log('i am gonna lose with %s -> %s\n', score, message)
+		if(message.type != 'MOVE')
+			return
+		const [ _, move ] = minimax(state, this.player)
 		this.board.send({
 			type: Actions.MARK,
 			markerIndex: move

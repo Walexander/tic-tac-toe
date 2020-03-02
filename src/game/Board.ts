@@ -1,17 +1,13 @@
 import { Machine, send, interpret, actions, assign, spawn } from 'xstate'
 const { log } = actions
 import { __, curry, tap, compose, path, contains } from 'ramda'
+import { printBoard } from './utils'
 
 import {
 	OwnerType,
-	State as MarkerState,
-	Events as MarkerEvents,
-	MarkerActor,
-	markerMachine,
 } from './marker'
 
 export interface BoardContext {
-	markers: MarkerActor[]
 	whoseTurn: OwnerType
 	winner?: OwnerType
 	winningCombo: WinningCombo
@@ -23,9 +19,9 @@ export enum BoardState {
 	PENDING = 'pending',
 	PLAYING = 'playing',
 	FINISHED = 'finished',
-	SET_MARK = 'marking',
 	WINNER = 'winner',
 	SWITCH_PLAYERS = 'switch',
+	CHECK_WINNER = 'check',
 	INITIALIZING = 'initializing',
 	INITIALIZED = 'initialized',
 	IDLE = 'idle',
@@ -67,7 +63,7 @@ export interface BoardSchema {
 			states: {
 				[BoardState.SWITCH_PLAYERS]: {}
 				[BoardState.IDLE]: {}
-				[BoardState.SET_MARK]: {}
+				[BoardState.CHECK_WINNER]: {}
 			}
 		}
 		[BoardState.FINISHED]: {}
@@ -76,7 +72,7 @@ export interface BoardSchema {
 }
 export type WinningCombo = [number, number, number]
 
-const hasWinner = curry(contains(__, [
+const comboIsWinnerFn = curry(contains(__, [
 	new Array(3).fill(OwnerType.PLAYER_1).join(''),
 	new Array(3).fill(OwnerType.PLAYER_2).join('')
 ]))
@@ -92,12 +88,7 @@ const WINNING_COMBOS: WinningCombo[] = [
 	[2,4,6],
 ]
 
-const markersToBoard = (markers: MarkerActor[]) =>
-	markers.map(({ state: { context, value } }) =>
-		value === MarkerState.CLOSED ? context.owner : ''
-	)
-
-const boardToCombos = (board: any[]) => 
+const boardToCombos = (board: GameBoard) => 
 	WINNING_COMBOS.map(([x,y,z]) => [ board[x], board[y], board[z] ])
 
 const _actions = {
@@ -107,28 +98,13 @@ const _actions = {
 				whoseTurn === OwnerType.PLAYER_1
 					? OwnerType.PLAYER_2
 					: OwnerType.PLAYER_1
-					//console.log(`setting whoseTurn from ${whoseTurn} to ${nextTurn}`)
 			return nextTurn
 		},
 	}),
-	initializeMarkers: assign<any>({
-		markers: (ctx: BoardContext) => {
-			return ctx.board.map((owner => {
-				let ref = spawn(markerMachine)
-				if(owner === OwnerType.PLAYER_1 || owner === OwnerType.PLAYER_2)
-					ref.send(MarkerEvents.MARK, {owner})
-				return ref
-			}))
-		},
-	}),
-	createMarkers: assign<any>({
+	createBoard: assign<any>({
 		winningCombo: () => [-1, -1, -1],
-		markers: (_: BoardContext) =>
-			new Array(9)
-				.fill(undefined)
-				.map(() => spawn(markerMachine, { sync: true })),
+		board: () => new Array(9).fill(undefined).map(() => OwnerType.PLAYER_0),
 	}),
-	logTap: compose(tap(console.log), path(['markers', 6, 'state', 'context'])),
 	logWhoseTurn: ({ whoseTurn }: BoardContext) => {
 		console.log(`it is now ${whoseTurn}'s turn`)
 	},
@@ -137,48 +113,52 @@ const _actions = {
 	})),
 	getWinningCombo: assign<any>({
 		winningCombo: (ctx: BoardContext) => {
-			let board = markersToBoard(ctx.markers)
-			let combos = boardToCombos(board).map(a => a.join(''))
-			let winner = combos.findIndex(hasWinner)
+			let combos = boardToCombos(ctx.board).map(a => a.join(''))
+			let winner = combos.findIndex(comboIsWinnerFn)
 			return WINNING_COMBOS[winner]
 		},
 	}),
-	makeMark: send<any, any>((context: BoardContext, event: MarkEvent) => ({
-		type: MarkerEvents.MARK,
-		to: context.markers[event.markerIndex],
-		payload: {
-			owner: context.whoseTurn,
+	makeMark: assign<any>({
+		board: ({ board, whoseTurn }: BoardContext, { markerIndex }: MarkEvent) => {
+			const newBoard = [...board]
+			newBoard[markerIndex] = whoseTurn
+			return newBoard
 		},
-	})),
+	}),
 }
 
 const guards = {
-	isValidMove: (ctx: BoardContext, event: BoardEvent) =>  {
-		const markerIndex = (event as MarkEvent).markerIndex 
-		const markers = ctx.markers
-		const mark = markers [ markerIndex ]
-		return mark.state.value.match(MarkerState.OPEN)
+	isValidMove: (ctx: BoardContext, event: BoardEvent) => {
+		const markerIndex = (event as MarkEvent).markerIndex
+		const board = ctx.board
+
+		let isOkay = (
+			markerIndex >= 0 &&
+			markerIndex < ctx.board.length &&
+			board[markerIndex] == OwnerType.PLAYER_0
+		)
+		console.log('move %s is %sokay',
+					markerIndex,
+					isOkay ? '' : 'NOT ')
+		return isOkay
 	},
 	hasBoard: (ctx: BoardContext) => {
 		return ctx.board.length > 0
 	},
-	hasWinner: (ctx: BoardContext) => {
-		let board = markersToBoard(ctx.markers)
-		let combos = boardToCombos(board).map( a => a.join('') )
-		let filtered = combos.filter(hasWinner)
+	hasWinner: ({ board }: BoardContext) => {
+		let combos = boardToCombos(board).map(a => a.join(''))
+		let filtered = combos.filter(comboIsWinnerFn)
 		return filtered.length > 0
 	},
 	isDraw: (ctx: BoardContext) => {
-		let open = ctx.markers.filter(m => m.state.value == MarkerState.OPEN)
-		return open.length <= 0
-	},
+		return ctx.board.filter(m => m == OwnerType.PLAYER_0).length <= 0
+	}
 }
 
 export const boardMachine = Machine<BoardContext, BoardSchema, BoardEvent>({
 	id: 'board',
 	initial: BoardState.PENDING,
 	context: {
-		markers: [],
 		board: [],
 		whoseTurn: OwnerType.PLAYER_1,
 		winningCombo: [-1, -1, -1],
@@ -188,25 +168,26 @@ export const boardMachine = Machine<BoardContext, BoardSchema, BoardEvent>({
 			on: {
 				[Actions.START]: {
 					target: BoardState.INITIALIZING,
+					actions: assign<any>({
+						whoseTurn: OwnerType.PLAYER_1
+					})
 				},
 			},
 		},
 		[BoardState.INITIALIZING]: {
-			entry: log('I am now INITIALIZING'),
 			on: {
 				'': [
 					{
 						target: BoardState.INITIALIZED, 
 						cond: 'hasBoard',
 						actions: [
-							'initializeMarkers',
 							send(Actions.INITIALIZED)
 						],
 					},
 					{
 						target: BoardState.INITIALIZED, 
 						actions: [
-							'createMarkers',
+							'createBoard',
 							send(Actions.INITIALIZED)
 						]
 					}
@@ -232,36 +213,22 @@ export const boardMachine = Machine<BoardContext, BoardSchema, BoardEvent>({
 				[BoardState.IDLE]: {
 					on: {
 						[Actions.MARK]: {
-							target: BoardState.SET_MARK,
+							target: BoardState.CHECK_WINNER,
 							cond: 'isValidMove',
 							actions: [
-								(ctx: BoardContext, event: MarkEvent) => {
-									let marker = ctx.markers[event.markerIndex]
-									marker.send({
-										type: MarkerEvents.MARK,
-										owner: ctx.whoseTurn,
-									})
-								},
+								'makeMark',
 							],
 						},
-						[Actions.RESET]: `#board.${BoardState.PENDING}`,
+						[Actions.RESET]: {
+							actions: ['createBoard',send(Actions.START)],
+							target: `#board.${BoardState.PENDING}`,
+						},
 					},
 
 				},
-				[BoardState.SWITCH_PLAYERS]: {
-					entry: [
-						'switchPlayer',
-					],
+				[BoardState.CHECK_WINNER]: {
 					on: {
-						'': { target: BoardState.IDLE },
-					}
-				},
-				[BoardState.SET_MARK]: {
-					entry: [
-						() => console.log('in the SET_MARK state'),
-					],
-					on: {
-						[Actions.MARK]: [
+						'': [
 							{
 								target: `#board.${BoardState.WINNER}`,
 								cond: 'hasWinner'
@@ -270,9 +237,18 @@ export const boardMachine = Machine<BoardContext, BoardSchema, BoardEvent>({
 								target: `#board.${BoardState.FINISHED}`,
 								cond: 'isDraw',
 							},
-							BoardState.SWITCH_PLAYERS
-					    ]
-				    }
+							{ target: BoardState.SWITCH_PLAYERS },
+						],
+					}
+				},
+				[BoardState.SWITCH_PLAYERS]: {
+					exit: [
+						'switchPlayer',
+						'logWhoseTurn'
+					],
+					on: {
+						'': BoardState.IDLE,
+					}
 				},
 		    }
 		},
@@ -282,19 +258,19 @@ export const boardMachine = Machine<BoardContext, BoardSchema, BoardEvent>({
 				[Actions.RESET]: {
 					target: [BoardState.PENDING],
 					actions: [
+						'createBoard',
 						send(Actions.START),
-						log('i am acting in the finished state')
 					]
 				}
-			}
+			},
 		},
 		[BoardState.FINISHED]: {
 			on: {
 				[Actions.RESET]: {
 					target: [BoardState.PENDING],
 					actions: [
+						'createBoard',
 						send(Actions.START),
-						log('i am acting in the finished state')
 					]
 				}
 		    }
