@@ -15,6 +15,7 @@ export const minimax = (board: GameBoard, player: OwnerType, depth = 0): [number
 	let nextPlayer = player == OwnerType.PLAYER_1  ? OwnerType.PLAYER_2 : OwnerType.PLAYER_1
 	let bestScore = -Infinity * multiplier
 	let bestIndex = -1
+	let bestMoves: number[] = []
 
 	for(let move of moveList) {
 		let nextBoard = [ ...board ]
@@ -29,8 +30,10 @@ export const minimax = (board: GameBoard, player: OwnerType, depth = 0): [number
 			Math.max(bestScore,	score) :
 			Math.min(bestScore, score)
 
-		if(score == bestScore && depth == 0)
+		if(score == bestScore && depth == 0) {
 			bestIndex = move
+			bestMoves.push(move)
+		}
 
 		if(depth == 0)
 			console.log(
@@ -42,6 +45,10 @@ export const minimax = (board: GameBoard, player: OwnerType, depth = 0): [number
 				bestScore,
 				bestIndex
 			)
+	}
+	if(bestMoves.length > 0) {
+		const randomBest = bestMoves[ Math.floor(Math.random() * bestMoves.length) ]
+		console.log("random index is ", randomBest, ' versus ', bestIndex)
 	}
 	return [ bestScore, bestIndex ]
 }

@@ -27,15 +27,16 @@ export class Board extends Actor<BoardMessage> {
 		const { whoseTurn, winningCombo, board } = context
 		this.ui.send({
 			type: message.type,
-			boardState: state.value,
+			boardState: state.toStrings(),
 			board,
 			player: whoseTurn,
+			isFinished: !state.matches('playing'),
 			winningCombo,
 		})
-		if(message.type === 'MARK' && whoseTurn == OwnerType.PLAYER_2 && state.matches('playing'))
+		if (state.matches({ players: 'player2', board: 'playing' }))
 			this.player.send({
 				type: EventTypes.MOVE,
-				board
+				board,
 			})
 
 	}

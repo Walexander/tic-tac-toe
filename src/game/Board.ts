@@ -25,13 +25,20 @@ export enum BoardState {
 	INITIALIZING = 'initializing',
 	INITIALIZED = 'initialized',
 	IDLE = 'idle',
+	PLAYERS = 'players',
+}
+
+export enum PlayerState {
+	PLAYER_1 = OwnerType.PLAYER_1,
+	PLAYER_2 = OwnerType.PLAYER_2 
 }
 
 export enum Actions {
 	START = 'START',
 	MARK = 'MARK',
 	RESET = 'RESET',
-	INITIALIZED = 'INITIALIZED'
+	INITIALIZED = 'INITIALIZED',
+	SWITCH_PLAYERS = 'SWITCH_PLAYERS',
 }
 
 export type StartEvent = {
@@ -45,30 +52,50 @@ export type MarkEvent = {
 export type ResetEvent = {
 	type: Actions.RESET
 }
+export type SwitchPlayersEvent = {
+	type: Actions.SWITCH_PLAYERS
+}
 
-export type BoardEvent = MarkEvent | StartEvent | ResetEvent
+export type BoardEvent = MarkEvent | StartEvent | ResetEvent | SwitchPlayersEvent
 
 export interface BoardSchema {
 	states: {
-		[BoardState.PENDING]: {}
-		[BoardState.INITIALIZING]: {
+		board: {
 			states: {
-				'withinitial': {}
-				'initialize': {}
-				'initialized': {}
+				[BoardState.PENDING]: {}
+				[BoardState.INITIALIZING]: {
+					states: {
+						'withinitial': {}
+						'initialize': {}
+						'initialized': {}
+					}
+				}
+				[BoardState.INITIALIZED]: {},
+				[BoardState.PLAYING]: {
+					states: {
+						[BoardState.IDLE]: {}
+						[BoardState.CHECK_WINNER]: {}
+					}
+				}
+				[BoardState.FINISHED]: {}
+				[BoardState.WINNER]: {}
+			}
+		},
+		players: {
+			states: {
+				player1: {},
+				player2: {},
 			}
 		}
-		[BoardState.INITIALIZED]: {},
-		[BoardState.PLAYING]: {
-			states: {
-				[BoardState.SWITCH_PLAYERS]: {}
-				[BoardState.IDLE]: {}
-				[BoardState.CHECK_WINNER]: {}
-			}
-		}
-		[BoardState.FINISHED]: {}
-		[BoardState.WINNER]: {}
 	}
+}
+export interface GameSchema {
+	states: {
+		players: {
+			player_1: {},
+			player_2: {},
+		},
+	},
 }
 export type WinningCombo = [number, number, number]
 
@@ -157,124 +184,137 @@ const guards = {
 
 export const boardMachine = Machine<BoardContext, BoardSchema, BoardEvent>({
 	id: 'board',
-	initial: BoardState.PENDING,
+	parallel: true,
 	context: {
 		board: [],
 		whoseTurn: OwnerType.PLAYER_1,
 		winningCombo: [-1, -1, -1],
 	},
 	states: {
-		[BoardState.PENDING]: {
-			on: {
-				[Actions.START]: {
-					target: BoardState.INITIALIZING,
-					actions: assign<any>({
-						whoseTurn: OwnerType.PLAYER_1
-					})
-				},
-			},
-		},
-		[BoardState.INITIALIZING]: {
-			on: {
-				'': [
-					{
-						target: BoardState.INITIALIZED, 
-						cond: 'hasBoard',
-						actions: [
-							send(Actions.INITIALIZED)
-						],
-					},
-					{
-						target: BoardState.INITIALIZED, 
-						actions: [
-							'createBoard',
-							send(Actions.INITIALIZED)
-						]
-					}
-				]
-			},
-		},
-		[BoardState.INITIALIZED]: {
-			on: {
-				[Actions.INITIALIZED]: {
-					target: BoardState.PLAYING,
-					actions: [
-						log('i am initializing and got INITIZLIED')
-					],
-				},
-			},
-		},
-		[BoardState.PLAYING]: {
-			initial: BoardState.IDLE,
-			entry: [
-				'logWhoseTurn'
-			],
+		players: {
+			initial: 'player1',
 			states: {
-				[BoardState.IDLE]: {
+				player1: {
+					entry: assign<any>({
+						whoseTurn: OwnerType.PLAYER_1,
+					}),
 					on: {
-						[Actions.MARK]: {
-							target: BoardState.CHECK_WINNER,
-							cond: 'isValidMove',
-							actions: [
-								'makeMark',
-							],
+						[Actions.SWITCH_PLAYERS]: {
+							target: 'player2',
+						}
+					}
+				},
+				player2: {
+					entry: assign<any>({
+						whoseTurn: OwnerType.PLAYER_2,
+					}),
+					on: {
+						[Actions.SWITCH_PLAYERS]: 'player1',
+					}
+				},
+			}
+		},
+		board: {
+			initial: BoardState.PENDING,
+			on: {
+				[Actions.RESET]: {
+					target: [
+						'.pending',
+						'players.player1',
+					],
+					actions: [
+						assign<any>({
+							board: [],
+							whoseTurn: OwnerType.PLAYER_1,
+						}),
+						send(Actions.START),
+					]
+				},
+			},
+			states: {
+				[BoardState.PENDING]: {
+					on: {
+						[Actions.SWITCH_PLAYERS]: {
 						},
-						[Actions.RESET]: {
-							actions: ['createBoard',send(Actions.START)],
-							target: `#board.${BoardState.PENDING}`,
+						[Actions.START]: {
+							target: BoardState.INITIALIZING,
 						},
 					},
-
 				},
-				[BoardState.CHECK_WINNER]: {
+				[BoardState.INITIALIZING]: {
 					on: {
 						'': [
 							{
-								target: `#board.${BoardState.WINNER}`,
-								cond: 'hasWinner'
+								target: BoardState.INITIALIZED, 
+								cond: 'hasBoard',
+								actions: [
+									send(Actions.INITIALIZED)
+								],
 							},
 							{
-								target: `#board.${BoardState.FINISHED}`,
-								cond: 'isDraw',
-							},
-							{ target: BoardState.SWITCH_PLAYERS },
-						],
-					}
+								target: BoardState.INITIALIZED, 
+								actions: [
+									'createBoard',
+									send(Actions.INITIALIZED)
+								]
+							}
+						]
+					},
 				},
-				[BoardState.SWITCH_PLAYERS]: {
-					exit: [
-						'switchPlayer',
+				[BoardState.INITIALIZED]: {
+					on: {
+						[Actions.INITIALIZED]: {
+							target: BoardState.PLAYING,
+							actions: [
+								log('i am initializing and got INITIZLIED')
+							],
+						},
+					},
+				},
+				[BoardState.PLAYING]: {
+					initial: BoardState.IDLE,
+					entry: [
 						'logWhoseTurn'
 					],
-					on: {
-						'': BoardState.IDLE,
-					}
+					states: {
+						[BoardState.IDLE]: {
+							on: {
+								[Actions.MARK]: {
+									target: BoardState.CHECK_WINNER,
+									cond: 'isValidMove',
+									actions: [
+										'makeMark',
+									],
+								},
+							},
+
+						},
+						[BoardState.CHECK_WINNER]: {
+							on: {
+								'': [
+									{
+										target: `#board.board.${BoardState.WINNER}`,
+										cond: 'hasWinner'
+									},
+									{
+										target: `#board.board.${BoardState.FINISHED}`,
+										cond: 'isDraw',
+									},
+									{
+										target: BoardState.IDLE,
+										actions: send(Actions.SWITCH_PLAYERS),
+									},
+								],
+							}
+						},
+		    		}
 				},
-		    }
-		},
-		[BoardState.WINNER]: {
-			entry: ['setWinner', 'getWinningCombo'],
-			on: {
-				[Actions.RESET]: {
-					target: [BoardState.PENDING],
-					actions: [
-						'createBoard',
-						send(Actions.START),
-					]
-				}
-			},
-		},
-		[BoardState.FINISHED]: {
-			on: {
-				[Actions.RESET]: {
-					target: [BoardState.PENDING],
-					actions: [
-						'createBoard',
-						send(Actions.START),
-					]
-				}
-		    }
-		},
+				[BoardState.WINNER]: {
+					entry: ['setWinner', 'getWinningCombo'],
+				},
+				[BoardState.FINISHED]: {},
+			}
+		}
 	},
 }, {actions: _actions, guards})
 

@@ -25,11 +25,12 @@ declare global {
 }
 
 export interface BoardUiMessage {
-	player: OwnerType
-	type: Actions | 'INIT'
-	board: GameBoard
-	boardState?: any
-	winningCombo?: WinningCombo
+	player: OwnerType,
+	type: Actions | 'INIT',
+	board: GameBoard,
+	boardState?: any,
+	isFinished?: boolean,
+	winningCombo?: WinningCombo,
 }
 
 export interface BoardUiWinner {
@@ -43,44 +44,12 @@ export class UI extends Actor<BoardUiMessage> {
 	private el: any = document.getElementById('myui')
 
 	onMessage(message: BoardUiMessage) {
-		const board = message.board
-		const whoseTurn = message.player
-		const winningCombo = message.winningCombo || [-1,-1,-1]
-		const button =
-				<button onClick={() => this.restartGame()}>Restart</button>
 
 		if(message.type == 'RESET')
 			this.render()
 		else
 			render(
-				<div className="dial-wrapper">
-					<header>
-						<h1>
-							{message.boardState === 'winner' ?
-								`Winner 🐔 dinner ${message.player}!!` :
-								message.boardState ==='finished' ?
-									'DRAW (you suck)' :
-									`${message.player} its your turn`}
-						</h1>
-						<div> {button} </div>
-					</header>
-					<Player active={whoseTurn}/>
-					<ul className={['board', '--' + message.boardState].join(' ')} >
-						{board.map((mark, index) => (
-							<li
-								onClick={() => this.mark(index)}
-								className={[
-									'board__mark ',
-									mark ? '--marked' : '',
-									winningCombo.indexOf(index) >= 0 ? '--winner' : '',
-								].join(' ')}
-
-							>
-								{mark ? mark : '·'}
-							</li>
-						))}
-					</ul>
-				</div>,
+				this.renderBoard(message),
 				this.el as any,
 				this.el.firstChild as any
 			)
@@ -113,6 +82,10 @@ export class UI extends Actor<BoardUiMessage> {
 		})
 	}
 
+	async switchPlayers() {
+		await this.board.send({type: Actions.SWITCH_PLAYERS})
+	}
+
 	async restartGame() {
 		await this.resetGame()
 		await this.startGame()
@@ -122,5 +95,58 @@ export class UI extends Actor<BoardUiMessage> {
 		await this.board.send({
 			type: Actions.RESET
 		})
+	}
+
+	renderBoard(message: BoardUiMessage) {
+
+		let className = [
+			'dial-wrapper',
+			'--' + message.boardState.join(' --').replace(/\./g, '-'),
+		].join(' ')
+		const whoseTurn = message.player
+		const board = message.board
+		const winningCombo = message.winningCombo || [-1,-1,-1]
+		const switchButton =
+				<button onClick={() => this.switchPlayers()}>Switch</button>
+
+		let boardMessage = message.boardState.indexOf('board.winner') >= 0
+								? `Winner 🐔 dinner ${message.player}!!`
+								: message.boardState === 'finished'
+								? 'DRAW (you suck)'
+								: message.player + 'its your turn'
+
+		return (<div className={className}>
+					<header> <h1>{boardMessage}</h1> </header>
+					<main>
+					<Player active={whoseTurn}>
+						<div className="players__switch">
+							<button
+								className="players__switch-button"
+								onClick={() => this.switchPlayers()}
+							>
+								Switch Players
+							</button>
+						</div>
+					</Player>
+					<ul className="board">
+						{board.map((mark, index) => (
+							<li
+								onClick={() => this.mark(index)}
+								className={[
+									'board__mark ',
+									mark ? '--marked' : '',
+									winningCombo.indexOf(index) >= 0 ? '--winner' : '',
+								].join(' ')}
+							> {mark ? mark : '·'} </li>
+						))}
+					</ul>
+					<div className="board__reset">
+						<button className="marker" onClick={() => this.restartGame()}>
+							Play Again
+						</button>
+					</div>
+				</main>
+				</div>
+			);
 	}
 }

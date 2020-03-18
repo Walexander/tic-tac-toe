@@ -152,8 +152,30 @@ button {
     justify-content: center;
     text-align: center;
 }
+.board__reset {
+	display: none;
+	position: absolute; 
+    bottom: 0;
+    right: 0;
+    top: 0;
+    left: 0;
+	color: white;
+	background: #0008;
+}
+
+.--board-winner .board__reset,
+.--board-finished .board__reset {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.board__reset button {
+	font-size: 2em;
+	position: relative;
+}
 .board__mark {
-	border: 0.75em dotted transparent;
+	border: 0.5em dotted transparent;
 	outline-offset: -0.25em;
 	outline: 0.25rem;
 }
@@ -174,6 +196,9 @@ button {
 	cursor: pointer;
 }
 
+main {
+	position: relative;
+}
 h1 {
 	line-height: 2;
 	margin: 0;
@@ -200,7 +225,10 @@ h1 {
 	background: white;
 	color: black;
 	text-align: center;
-	min-width: 10ch;
+	min-width: 5ch;
+}
+.players > *:nth-child(2) {
+	order: 3;
 }
 .players__player.--active {
 	background: white;
@@ -210,9 +238,18 @@ h1 {
 	background: #333;
 	color: #eee;
 }
+.players__switch {
+	min-width: unset;
+	max-width: 3em;
+	display: flex;
+	align-items: center;
+	background: #ccc0;
+	margin: 0 1em;
+	padding: 0 0.5em;
+}
 
 .players__player:after {
-	content: 'You Turn';
+	content: 'Your Turn';
 	font-size: 0.75rem;
 	display: block;
 	margin-top: 0.25rem;
